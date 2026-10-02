@@ -1,0 +1,437 @@
+{% extends "dentalcare/base.html" %}
+{% load static %}
+{% block title %}DentalCare AI Chatbot{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="chat-shell">
+        <div class="chat-top d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-bold fs-5"><i class="bi bi-robot me-2"></i>DentalCare AI</div>
+                <div class="small opacity-75">Groq-powered dental assistant · voice enabled</div>
+            </div>
+            <button id="resetChat" class="btn btn-outline-light btn-sm rounded-pill"><i class="bi bi-arrow-clockwise me-1"></i>New chat</button>
+        </div>
+
+        <div class="chat-body" id="chatBody">
+            <div class="chat-message bot">
+                <div class="chat-avatar"><i class="bi bi-robot"></i></div>
+                <div class="bubble">Hello! 👋 Tell me what dental problem or question you have. You can type or use the microphone. I can also identify symptoms and explain possible conditions to discuss with a dentist.</div>
+            </div>
+        </div>
+
+        <div id="analysisPanel" class="analysis-panel d-none"></div>
+
+    
+<div class="chat-controls">
+
+    <div id="voiceStatus" class="small text-secondary mb-2"></div>
+
+    <!-- File Upload Section -->
+    <div class="file-upload-box mb-3">
+
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-paperclip fs-5"></i>
+            <strong>Upload Dental / Insurance Document</strong>
+        </div>
+
+        <div class="input-group">
+
+            <input
+                type="file"
+                id="chatFile"
+                class="form-control"
+                accept=".pdf,.png,.jpg,.jpeg"
+            >
+
+            <button
+                id="uploadFileBtn"
+                class="btn btn-outline-primary"
+                type="button"
+            >
+                <i class="bi bi-cloud-upload me-1"></i>
+                Upload
+            </button>
+
+        </div>
+
+        <div class="small text-secondary mt-2">
+            Supported files: PDF, PNG, JPG, JPEG · Maximum 10 MB
+        </div>
+
+        <!-- Selected File -->
+        <div id="selectedFile" class="mt-2"></div>
+
+        <!-- Upload Result -->
+        <div id="fileResult" class="mt-2"></div>
+
+    </div>
+
+
+    <!-- Chat Input -->
+    <div class="input-group input-group-lg">
+
+        <textarea
+            id="chatInput"
+            class="form-control"
+            rows="1"
+            placeholder="Describe your dental concern..."
+        ></textarea>
+
+        <!-- Microphone -->
+        <button
+            id="micBtn"
+            class="btn btn-outline-primary"
+            type="button"
+            title="Voice input"
+        >
+            <i class="bi bi-mic-fill"></i>
+        </button>
+
+        <!-- Speaker -->
+        <button
+            id="speakBtn"
+            class="btn btn-outline-secondary"
+            type="button"
+            title="Read latest reply aloud"
+        >
+            <i class="bi bi-volume-up-fill"></i>
+        </button>
+
+        <!-- Send -->
+        <button
+            id="sendBtn"
+            class="btn btn-primary"
+            type="button"
+        >
+            <i class="bi bi-send-fill"></i>
+        </button>
+
+    </div>
+
+    <div class="small text-secondary mt-2">
+        Voice input uses your browser microphone.
+        Voice output uses browser speech synthesis.
+    </div>
+
+</div>
+
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const endpoint = "{% url 'chatbot:chatbot_message' %}";
+const resetEndpoint = "{% url 'chatbot:reset_chat' %}";
+const body = document.getElementById("chatBody");
+const input = document.getElementById("chatInput");
+const send = document.getElementById("sendBtn");
+const mic = document.getElementById("micBtn");
+const speak = document.getElementById("speakBtn");
+const statusEl = document.getElementById("voiceStatus");
+const panel = document.getElementById("analysisPanel");
+let latestReply = "";
+let recognition = null;
+let listening = false;
+
+function csrf() {
+    return document.cookie.split(";").map(x=>x.trim()).find(x=>x.startsWith("csrftoken="))?.split("=")[1] || "";
+}
+function escapeHtml(v) {
+    return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+function addMessage(text, role) {
+    const row = document.createElement("div");
+    row.className = `chat-message ${role}`;
+    row.innerHTML = `<div class="chat-avatar"><i class="bi ${role==="user" ? "bi-person-fill" : "bi-robot"}"></i></div><div class="bubble">${escapeHtml(text).replace(/\n/g,"<br>")}</div>`;
+    body.appendChild(row);
+    body.scrollTop = body.scrollHeight;
+}
+function showAnalysis(data) {
+    const conditions = data.possible_conditions || [];
+    const symptoms = data.symptoms || [];
+    const flags = data.red_flags || [];
+    if (!symptoms.length && !conditions.length && !flags.length) {
+        panel.classList.add("d-none");
+        return;
+    }
+    let html = `<div class="d-flex justify-content-between align-items-center mb-2"><strong><i class="bi bi-clipboard2-pulse me-2"></i>AI symptom analysis</strong><span class="badge text-bg-${data.urgency==="emergency" ? "danger" : "secondary"}">${escapeHtml(data.urgency || "low")}</span></div>`;
+    if (symptoms.length) html += `<div class="mb-2"><strong>Symptoms detected:</strong> ${symptoms.map(escapeHtml).join(", ")}</div>`;
+    if (conditions.length) html += `<div><strong>Possible conditions:</strong><ul class="mb-1">${conditions.map(c=>`<li><strong>${escapeHtml(c.name)}</strong> — ${escapeHtml(c.reason)}</li>`).join("")}</ul></div>`;
+    if (flags.length) html += `<div class="alert alert-danger py-2 mb-0"><strong>Red flags:</strong> ${flags.map(escapeHtml).join(", ")}</div>`;
+    html += `<div class="small text-secondary mt-2">These are possibilities, not a diagnosis. A dentist may need an examination and/or X-ray.</div>`;
+    panel.innerHTML = html;
+    panel.classList.remove("d-none");
+}
+async function sendMessage() {
+    const message = input.value.trim();
+    if (!message) return;
+    addMessage(message, "user");
+    input.value = "";
+    send.disabled = true;
+    statusEl.textContent = "DentalCare AI is thinking...";
+    try {
+        const r = await fetch(endpoint, {
+            method:"POST",
+            headers:{"Content-Type":"application/json","X-CSRFToken":csrf()},
+            body:JSON.stringify({message})
+        });
+        const data = await r.json();
+        if (!r.ok || !data.success) throw new Error(data.error || "Unable to process message.");
+        latestReply = data.reply || "";
+        addMessage(latestReply, "bot");
+        showAnalysis(data);
+        speakText(latestReply);
+    } catch (err) {
+        addMessage("Sorry, I couldn't process that message. " + err.message, "bot");
+    } finally {
+        send.disabled = false;
+        statusEl.textContent = "";
+        input.focus();
+    }
+}
+function speakText(text) {
+    if (!text || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
+}
+send.addEventListener("click", sendMessage);
+input.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+speak.addEventListener("click", () => speakText(latestReply));
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+        listening = true;
+        mic.classList.add("active");
+        statusEl.textContent = "Listening... speak now.";
+    };
+    recognition.onresult = event => {
+        const transcript = event.results[0][0].transcript;
+        input.value = transcript;
+        statusEl.textContent = "Voice captured. Sending to AI...";
+        sendMessage();
+    };
+    recognition.onerror = event => {
+        statusEl.textContent = "Microphone error: " + event.error;
+        listening = false;
+        mic.classList.remove("active");
+    };
+    recognition.onend = () => {
+        listening = false;
+        mic.classList.remove("active");
+    };
+    mic.addEventListener("click", () => {
+        if (listening) recognition.stop();
+        else recognition.start();
+    });
+} else {
+    mic.disabled = true;
+    mic.title = "Voice recognition is not supported by this browser";
+    statusEl.textContent = "Voice input is not supported by this browser. Try a Chromium-based browser.";
+}
+document.getElementById("resetChat").addEventListener("click", async () => {
+    await fetch(resetEndpoint, {method:"POST", headers:{"X-CSRFToken":csrf()}});
+    body.innerHTML = `<div class="chat-message bot"><div class="chat-avatar"><i class="bi bi-robot"></i></div><div class="bubble">New conversation started. How can I help with your dental concern?</div></div>`;
+    panel.classList.add("d-none");
+    latestReply = "";
+    window.speechSynthesis?.cancel();
+});
+
+// ==========================================
+// FILE UPLOAD
+// ==========================================
+
+const chatFile = document.getElementById("chatFile");
+const uploadFileBtn = document.getElementById("uploadFileBtn");
+const selectedFile = document.getElementById("selectedFile");
+const fileResult = document.getElementById("fileResult");
+
+
+// Show selected file
+chatFile.addEventListener("change", () => {
+
+    const file = chatFile.files[0];
+
+    if (!file) {
+        selectedFile.innerHTML = "";
+        return;
+    }
+
+    // Check file size
+    const maxSize = 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+
+        selectedFile.innerHTML = `
+            <div class="alert alert-danger py-2">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                File is larger than 10 MB.
+            </div>
+        `;
+
+        chatFile.value = "";
+        return;
+    }
+
+
+    selectedFile.innerHTML = `
+        <div class="alert alert-info py-2 mb-0">
+
+            <i class="bi bi-file-earmark-text me-2"></i>
+
+            <strong>Selected:</strong>
+            ${escapeHtml(file.name)}
+
+            <br>
+
+            <small>
+                ${(file.size / 1024 / 1024).toFixed(2)} MB
+            </small>
+
+        </div>
+    `;
+});
+
+
+// Upload file
+uploadFileBtn.addEventListener("click", async () => {
+
+    const file = chatFile.files[0];
+
+    if (!file) {
+
+        fileResult.className =
+            "alert alert-warning py-2";
+
+        fileResult.textContent =
+            "Please select a file first.";
+
+        return;
+    }
+
+
+    // Disable button
+    uploadFileBtn.disabled = true;
+
+    uploadFileBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-1"></span>
+        Analysing...
+    `;
+
+
+    fileResult.className =
+        "alert alert-info py-2";
+
+    fileResult.textContent =
+        "Uploading document and analysing with AI...";
+
+
+    // FormData
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+
+    try {
+
+        const response = await fetch(
+            "{% url 'chatbot:upload_chat_file' %}",
+            {
+                method: "POST",
+
+                headers: {
+                    "X-CSRFToken": csrf()
+                },
+
+                body: formData
+            }
+        );
+
+
+        const data = await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.error ||
+                "Unable to analyse the document."
+            );
+
+        }
+
+
+        // Add uploaded document to chatbot
+        addMessage(
+            "📎 Uploaded document: " + data.filename,
+            "user"
+        );
+
+
+        // Add AI response
+        latestReply = data.reply || "";
+
+        addMessage(
+            latestReply,
+            "bot"
+        );
+
+
+        // Show success
+        fileResult.className =
+            "alert alert-success py-2";
+
+        fileResult.innerHTML = `
+            <i class="bi bi-check-circle me-2"></i>
+            Document analysed successfully.
+        `;
+
+
+        // Clear selected file
+        chatFile.value = "";
+
+        selectedFile.innerHTML = "";
+
+
+        // Read AI response aloud
+        speakText(latestReply);
+
+
+    } catch (error) {
+
+        console.error("FILE UPLOAD ERROR:", error);
+
+
+        fileResult.className =
+            "alert alert-danger py-2";
+
+        fileResult.textContent =
+            error.message ||
+            "File upload failed.";
+
+    } finally {
+
+        uploadFileBtn.disabled = false;
+
+        uploadFileBtn.innerHTML = `
+            <i class="bi bi-cloud-upload me-1"></i>
+            Upload
+        `;
+
+    }
+
+});
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "dentalcare/base.html" %}
+{% block title %}Dental Emergency{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="emergency-banner p-4 p-md-5 rounded-4">
+        <div class="d-flex gap-3 align-items-start">
+            <i class="bi bi-exclamation-octagon-fill display-6"></i>
+            <div>
+                <span class="eyebrow">EMERGENCY</span>
+                <h1>Get urgent professional help when needed</h1>
+                <p class="mb-0">A chatbot cannot safely assess a serious emergency. If you have a life-threatening situation, contact your local emergency service immediately.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="panel-card h-100">
+                <h4>Warning signs</h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0">Difficulty breathing or swallowing</li>
+                    <li class="list-group-item px-0">Rapidly increasing facial, mouth or neck swelling</li>
+                    <li class="list-group-item px-0">Uncontrolled heavy bleeding</li>
+                    <li class="list-group-item px-0">Major facial or jaw trauma</li>
+                    <li class="list-group-item px-0">Loss of consciousness or severe systemic symptoms</li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="panel-card h-100">
+                <h4>AI emergency screening</h4>
+                <p>Describe what is happening and the chatbot will look for red flags. This is only a screening aid.</p>
+                <a href="{% url 'chatbot:chatbot' %}" class="btn btn-danger rounded-pill">Open Emergency Chat</a>
+                <p class="small text-secondary mt-3 mb-0">For serious symptoms, do not wait for an AI response before seeking professional care.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

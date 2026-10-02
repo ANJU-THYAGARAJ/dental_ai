@@ -1,0 +1,193 @@
+{% extends "dentalcare/base.html" %}
+
+{% block title %}Reschedule Appointment{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+
+    <div class="page-heading text-center mb-4">
+        <span class="eyebrow">APPOINTMENT</span>
+        <h1>Reschedule Appointment</h1>
+        
+    </div>
+
+    <div class="panel-card col-lg-8 mx-auto">
+
+        <form id="rescheduleForm">
+
+            {% csrf_token %}
+
+            <div class="row g-3">
+
+                <!-- Name -->
+                <div class="col-md-6">
+                    <label class="form-label">Full Name *</label>
+                    <input
+                        type="text"
+                        id="resName"
+                        class="form-control"
+                        placeholder="Enter your full name"
+                        required>
+                </div>
+
+                <!-- Phone -->
+                <div class="col-md-6">
+                    <label class="form-label">Phone Number *</label>
+                    <input
+                        type="tel"
+                        id="resPhone"
+                        class="form-control"
+                        placeholder="Enter your phone number"
+                        required>
+                </div>
+
+                <!-- Appointment ID -->
+                <div class="col-12">
+                    <label class="form-label">Appointment ID *</label>
+                    <input
+                        type="number"
+                        id="resAppointmentId"
+                        class="form-control"
+                        placeholder="Example: 1"
+                        required>
+                    <small class="text-secondary">
+                        Enter the appointment ID you received when booking.
+                    </small>
+                </div>
+
+                <!-- New Date -->
+                <div class="col-md-6">
+                    <label class="form-label">New Date *</label>
+                    <input
+                        type="date"
+                        id="resDate"
+                        class="form-control"
+                        required>
+                </div>
+
+                <!-- New Time -->
+                <div class="col-md-6">
+                    <label class="form-label">New Time *</label>
+                    <input
+                        type="time"
+                        id="resTime"
+                        class="form-control"
+                        required>
+                </div>
+
+            </div>
+
+            <button
+                type="submit"
+                class="btn btn-primary rounded-pill px-4 mt-4">
+
+                <i class="bi bi-calendar2-week me-2"></i>
+                Reschedule Appointment
+
+            </button>
+
+        </form>
+
+        <div id="resResult" class="mt-3"></div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+
+<script>
+
+document
+    .getElementById("rescheduleForm")
+    .addEventListener("submit", async function (e) {
+
+        e.preventDefault();
+
+        const result = document.getElementById("resResult");
+
+        result.className = "alert alert-info mt-3";
+        result.textContent = "Rescheduling appointment...";
+
+        const payload = {
+
+            name: document.getElementById("resName").value.trim(),
+
+            phone: document.getElementById("resPhone").value.trim(),
+
+            appointment_id:
+                document.getElementById("resAppointmentId").value.trim(),
+
+            new_date:
+                document.getElementById("resDate").value,
+
+            new_time:
+                document.getElementById("resTime").value
+
+        };
+
+        const csrf =
+            document.querySelector(
+                "[name=csrfmiddlewaretoken]"
+            ).value;
+
+        try {
+
+            const response = await fetch(
+                "{% url 'chatbot:reschedule_appointment' %}",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrf
+                    },
+
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.success) {
+
+                result.className =
+                    "alert alert-success mt-3";
+
+                result.textContent = data.message;
+
+                document
+                    .getElementById("rescheduleForm")
+                    .reset();
+
+            } else {
+
+                result.className =
+                    "alert alert-danger mt-3";
+
+                result.textContent =
+                    data.error || "Unable to reschedule appointment.";
+
+            }
+
+        } catch (error) {
+
+            result.className =
+                "alert alert-danger mt-3";
+
+            result.textContent =
+                "Something went wrong. Please try again.";
+
+            console.error(error);
+
+        }
+
+    });
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "dentalcare/base.html" %}
+{% block title %}Dental Enquiry{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="page-heading">
+        <span class="eyebrow">ENQUIRY</span>
+        <h1>Tell us about your dental concern</h1>
+    </div>
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="panel-card">
+                <form id="enquiryForm">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">Name</label><input id="eqName" class="form-control" placeholder="Your name"></div>
+                        <div class="col-md-6"><label class="form-label">Phone</label><input id="eqPhone" class="form-control" placeholder="Phone number"></div>
+                        <div class="col-12"><label class="form-label">Enquiry / symptoms</label><textarea id="eqMessage" class="form-control" rows="6" placeholder="Example: I have tooth pain when I drink cold water and my gum is swollen."></textarea></div>
+                    </div>
+                    <button class="btn btn-primary rounded-pill px-4 mt-3" type="submit"><i class="bi bi-send me-2"></i>Analyse enquiry</button>
+                    <a class="btn btn-outline-secondary rounded-pill px-4 mt-3" href="{% url 'chatbot:chatbot' %}">Use full chatbot</a>
+                </form>
+                <div id="eqResult" class="mt-4 d-none"></div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="info-card">
+                <h5><i class="bi bi-shield-check me-2"></i>How symptom analysis works</h5>
+                <p>The AI extracts symptoms and identifies possible conditions associated with them. It does not confirm a disease or replace a dental examination.</p>
+                <hr>
+                <h6>Examples</h6>
+                <p class="small mb-2">• tooth sensitivity</p>
+                <p class="small mb-2">• gum swelling or bleeding</p>
+                <p class="small mb-2">• persistent toothache</p>
+                <p class="small">• mouth ulcers or jaw pain</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const enquiryForm = document.getElementById("enquiryForm");
+enquiryForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const result = document.getElementById("eqResult");
+    result.className = "alert alert-info mt-4";
+    result.textContent = "Analysing...";
+    const message = document.getElementById("eqMessage").value.trim();
+    if (!message) { result.textContent = "Please enter your enquiry."; return; }
+
+    const r = await fetch("{% url 'chatbot:chatbot_message' %}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+        body: JSON.stringify({message})
+    });
+    const data = await r.json();
+    if (!r.ok || !data.success) { result.className = "alert alert-danger mt-4"; result.textContent = data.error || "Unable to analyse."; return; }
+
+    let html = `<h5>AI response</h5><p>${escapeHtml(data.reply).replace(/\n/g,"<br>")}</p>`;
+    if (data.symptoms?.length) html += `<hr><strong>Symptoms detected</strong><ul>${data.symptoms.map(escapeHtml).map(x=>`<li>${x}</li>`).join("")}</ul>`;
+    if (data.possible_conditions?.length) html += `<strong>Possible conditions to discuss with a dentist</strong><ul>${data.possible_conditions.map(x=>`<li><strong>${escapeHtml(x.name)}</strong>: ${escapeHtml(x.reason)}</li>`).join("")}</ul>`;
+    result.className = "alert alert-light border mt-4";
+    result.innerHTML = html;
+});
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+</script>
+{% endblock %}

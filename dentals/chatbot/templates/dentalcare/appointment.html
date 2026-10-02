@@ -1,0 +1,53 @@
+{% extends "dentalcare/base.html" %}
+{% block title %}Appointment{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="page-heading">
+        <span class="eyebrow">APPOINTMENT</span>
+        <h1>Request a dental appointment</h1>
+    </div>
+    <div class="panel-card col-lg-9 mx-auto">
+        <form id="appointmentForm">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Full name *</label><input id="apName" class="form-control" required></div>
+                <div class="col-md-6"><label class="form-label">Phone number *</label><input id="apPhone" class="form-control" required></div>
+                <div class="col-md-6"><label class="form-label">Treatment</label><input id="apTreatment" class="form-control" placeholder="Cleaning, whitening, tooth pain..."></div>
+                <div class="col-md-3"><label class="form-label">Preferred date *</label><input id="apDate" type="date" class="form-control" required></div>
+                <div class="col-md-3"><label class="form-label">Preferred time *</label><input id="apTime" type="time" class="form-control" required></div>
+                <div class="col-12"><label class="form-label">Notes</label><textarea id="apNotes" class="form-control" rows="4" placeholder="Anything the clinic should know?"></textarea></div>
+            </div>
+            <button class="btn btn-primary rounded-pill px-4 mt-4" type="submit"><i class="bi bi-calendar-check me-2"></i>Submit appointment request</button>
+        </form>
+        <div id="apResult" class="mt-3"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("appointmentForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const result = document.getElementById("apResult");
+    result.className = "alert alert-info mt-3";
+    result.textContent = "Submitting...";
+    const payload = {
+        name: document.getElementById("apName").value,
+        phone: document.getElementById("apPhone").value,
+        treatment: document.getElementById("apTreatment").value,
+        preferred_date: document.getElementById("apDate").value,
+        preferred_time: document.getElementById("apTime").value,
+        notes: document.getElementById("apNotes").value
+    };
+    const csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const r = await fetch("{% url 'chatbot:create_appointment' %}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
+        body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    result.className = `alert ${data.success ? "alert-success" : "alert-danger"} mt-3`;
+    result.textContent = data.message || data.error;
+    if (data.success) document.getElementById("appointmentForm").reset();
+});
+</script>
+{% endblock %}

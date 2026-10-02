@@ -1,0 +1,169 @@
+{% extends "dentalcare/base.html" %}
+
+{% block title %}DentalCare AI | Home{% endblock %}
+
+{% block content %}
+
+<section class="hero-section">
+    <div class="container py-5">
+
+```
+    <div class="row align-items-center g-5">
+
+        <div class="col-lg-7">
+
+            <span class="badge rounded-pill bg-white text-primary px-3 py-2 mb-3">
+                AI-powered dental support
+            </span>
+
+            <h1 class="display-4 fw-bold">
+                Your digital dental care assistant.
+            </h1>
+
+            <p class="lead mt-3">
+                Ask dental questions, describe symptoms, use your voice,
+                send an enquiry, or request an appointment from one place.
+            </p>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+
+                <a class="btn btn-light btn-lg rounded-pill px-4"
+                   href="{% url 'chatbot:chatbot' %}">
+                    <i class="bi bi-chat-dots me-2"></i>
+                    Start AI Chat
+                </a>
+
+                <a class="btn btn-outline-light btn-lg rounded-pill px-4"
+                   href="{% url 'chatbot:appointment' %}">
+                    Book Appointment
+                </a>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-5">
+
+            <div class="hero-card">
+
+                <i class="bi bi-robot display-3"></i>
+
+                <h3 class="mt-3">
+                    What can the AI do?
+                </h3>
+
+                <ul class="mb-0">
+                    <li>
+                        Understand natural-language dental questions
+                    </li>
+
+                    <li>
+                        Extract and summarize symptoms
+                    </li>
+
+                    <li>
+                        Show possible conditions to discuss with a dentist
+                    </li>
+
+                    <li>
+                        Detect emergency warning signs
+                    </li>
+
+                    <li>
+                        Respond to typed or spoken messages
+                    </li>
+                </ul>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<section class="container py-5">
+
+```
+<div class="row g-4">
+
+    <div class="col-md-3">
+
+        <a class="feature-card"
+           href="{% url 'chatbot:enquiry' %}">
+
+            <i class="bi bi-chat-square-text"></i>
+
+            <h5>Enquiry</h5>
+
+            <p>
+                Send a dental question or symptom enquiry.
+            </p>
+
+        </a>
+
+    </div>
+
+
+    <div class="col-md-3">
+
+        <a class="feature-card emergency-card"
+           href="{% url 'chatbot:emergency' %}">
+
+            <i class="bi bi-exclamation-triangle"></i>
+
+            <h5>Emergency</h5>
+
+            <p>
+                Review urgent warning signs and next steps.
+            </p>
+
+        </a>
+
+    </div>
+
+
+    <div class="col-md-3">
+
+        <a class="feature-card"
+           href="{% url 'chatbot:appointment' %}">
+
+            <i class="bi bi-calendar2-check"></i>
+
+            <h5>Appointment</h5>
+
+            <p>
+                Submit your preferred appointment details.
+            </p>
+
+        </a>
+
+    </div>
+
+
+    <div class="col-md-3">
+
+        <a class="feature-card"
+           href="{% url 'chatbot:chatbot' %}">
+
+            <i class="bi bi-robot"></i>
+
+            <h5>AI Chatbot</h5>
+
+            <p>
+                Chat naturally and use voice input/output.
+            </p>
+
+        </a>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+{% endblock %}
